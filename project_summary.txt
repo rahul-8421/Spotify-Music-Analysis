@@ -1,0 +1,239 @@
+SPOTIFY MUSIC ANALYSIS: WHAT MAKES A SONG POPULAR?
+PROJECT SUMMARY
+
+==================================================
+1. OVERVIEW
+==================================================
+
+This is an end-to-end data analysis project on about 114,000 Spotify tracks.
+The data was cleaned in Excel, loaded into MySQL using Python, analyzed with
+10 SQL queries, and presented in an interactive Power BI dashboard.
+
+Tools used: Excel, Python (pandas, SQLAlchemy, PyMySQL), MySQL, MySQL Workbench, Power BI (DAX)
+
+Workflow:
+Raw CSV from Kaggle -> Excel (cleaning) -> Python (loading) -> MySQL (analysis) -> Power BI (dashboard)
+
+
+==================================================
+2. DATASET
+==================================================
+
+Source: Spotify Tracks Dataset from Kaggle.
+Size: 114,000 rows, 114 genres, about 89,700 unique songs.
+Main columns: track_id, artists, album_name, track_name, popularity,
+duration_ms, explicit, danceability, energy, key, loudness, mode, speechiness,
+acousticness, instrumentalness, liveness, valence, tempo, time_signature,
+track_genre.
+
+Note: one song can appear under several genres, so the same track_id appears
+in more than one row. This was handled carefully in the analysis (see section 5).
+
+
+==================================================
+3. BUSINESS QUESTIONS
+==================================================
+
+1. Which genres are the most popular?
+2. Does energy level affect popularity?
+3. Do explicit songs perform better than non-explicit songs?
+4. Which artists have the highest average popularity?
+5. What song duration works best?
+6. How do audio features differ between popular and unpopular songs?
+7. How are songs spread across popularity buckets?
+8. Which genres produce the most hit songs?
+9. Which artists consistently beat the overall average?
+10. How do the top 25% and bottom 25% of songs compare?
+
+
+==================================================
+4. DATA CLEANING IN EXCEL
+==================================================
+
+Data checks done first: structure, missing values, duplicates, zero values.
+
+Issues found and actions taken:
+
+- Extra index column (Unnamed: 0): deleted.
+- 450 rows with the same track_id and the same genre: removed using
+  Remove Duplicates on track_id and track_genre together.
+- 1 row with a missing artist, album and track name: deleted.
+- Rows with duration_ms = 0 or tempo = 0 (invalid data): filtered and deleted.
+- Same song listed under several genres (about 24,000 extra rows): kept on
+  purpose, because each genre listing is valid for genre analysis.
+- Songs with popularity = 0 (about 16,000 rows): kept in the data.
+
+Helper columns added in Excel:
+
+- duration_min: song length in minutes (duration_ms divided by 60000).
+- popularity_bucket: High (popularity 70 and above), Medium (40 to 69),
+  Low (below 40).
+
+A pivot table (average popularity by genre, sorted high to low) was built to
+explore the data. The cleaned data was then saved as a UTF-8 CSV file.
+
+
+==================================================
+5. LOADING DATA INTO MYSQL
+==================================================
+
+- Created the database spotify_db and the table tracks with proper data types.
+- Loaded the cleaned CSV into MySQL using Python (pandas, SQLAlchemy, PyMySQL).
+- Created a view called tracks_unique that keeps only one row per song, using
+  ROW_NUMBER() OVER (PARTITION BY track_id ORDER BY popularity DESC).
+
+Why two sources:
+- Genre analysis uses the tracks table, because one song can belong to
+  several genres.
+- Artist, energy, explicit and duration analysis use the tracks_unique view,
+  so that no song is counted more than once.
+
+
+==================================================
+6. SQL ANALYSIS (10 QUERIES)
+==================================================
+
+1. Top 10 genres by average popularity.
+   Skills: GROUP BY, ORDER BY, LIMIT.
+
+2. Energy level (High, Medium, Low) vs average popularity.
+   Skills: CASE WHEN, GROUP BY.
+
+3. Explicit vs non-explicit songs, with count and average popularity.
+   Skills: GROUP BY, aggregate functions.
+
+4. Top 10 artists with at least 20 songs, by average popularity.
+   Skills: GROUP BY, HAVING.
+
+5. Song duration (in minutes) vs average popularity.
+   Skills: ROUND, GROUP BY, HAVING.
+
+6. Audio profile of High vs Low popularity songs (danceability, energy,
+   valence, acousticness, loudness).
+   Skills: multiple aggregates in one query.
+
+7. Share of songs in each popularity bucket, shown as a percentage of total.
+   Skills: window function (SUM() OVER).
+
+8. Genres with the highest share of hit songs.
+   Skills: conditional aggregation.
+
+9. Artists that beat the overall average popularity.
+   Skills: CTE (WITH clause), cross join.
+
+10. Popularity quartiles: comparison of the top 25% and bottom 25% of songs.
+    Skills: NTILE window function, subquery.
+
+
+==================================================
+7. POWER BI DASHBOARD
+==================================================
+
+Connection: Power BI is connected to MySQL (Import mode) using the tracks and
+tracks_unique tables. A relationship was created between the two tables so
+that slicers can filter both.
+
+DAX measures created:
+Total Songs, Avg Pop, Avg Pop 20+, Explicit %, Total Genres, Avg Pop Genre,
+Hit % Genre, Above Avg By.
+
+DAX calculated columns created:
+Energy Level, Duration Min Rounded, Explicit Label, Popularity Quartile,
+Bucket Order.
+
+Dashboard design: dark header bar, Spotify-green charts, light grey
+background, white rounded chart cards, titles on every visual.
+
+The dashboard has 3 pages:
+
+Page 1, Overview
+- 4 KPI cards: Total Songs, Avg Popularity, Total Genres, Explicit %.
+- Top 10 genres by average popularity.
+- Share of songs by popularity bucket (donut chart).
+- 4 slicers: Genre, Energy Level, Popularity, Explicit.
+
+Page 2, Genres and Artists
+- Top 10 genres by share of hit songs.
+- Average popularity: explicit vs non-explicit.
+- Top 10 artists by average popularity (20+ songs).
+- Artists beating the overall average.
+
+Page 3, Audio Features
+- Average popularity by energy level.
+- Audio profile of Low, Medium and High popularity songs.
+- Average popularity by song duration.
+- Audio features of the top 25% vs bottom 25% of songs.
+
+
+==================================================
+8. KEY FINDINGS
+==================================================
+
+- Pop has the highest share of hit songs (31.9%), followed by dance (25.3%)
+  and electro (24.1%).
+- The top 10 genres by share of hit songs are pop, dance, electro, k-pop,
+  house, metal, rock, indie, edm and indie-pop.
+- Explicit songs have an average popularity of 36.9, compared to 32.9 for
+  non-explicit songs.
+- Among artists with 20 or more songs, Stray Kids lead with an average
+  popularity of 72.9, followed by The Neighbourhood (71.1), The 1975 (68.9)
+  and BLACKPINK (67.6).
+
+These are patterns in the data, not proof of cause and effect.
+
+
+==================================================
+9. CHALLENGES AND HOW THEY WERE SOLVED
+==================================================
+
+1. The MySQL Workbench import wizard loaded only 44 of about 113,000 rows.
+   Solution: loaded the data with Python (pandas and SQLAlchemy) instead.
+
+2. Accented characters looked broken (for example EnamorÃ©) because the CSV
+   encoding was misread when the file was opened in Excel.
+   Solution: re-decoded the text in Python (cp1252 to utf-8) before loading.
+
+3. Error "Data too long for column artists" (one value had 513 characters).
+   Solution: changed the artists, album_name and track_name columns to TEXT.
+
+4. Songs listed under several genres inflated counts in artist and song
+   analysis.
+   Solution: created the tracks_unique view and used it for all non-genre
+   analysis.
+
+5. Power BI showed a circular dependency error when sorting the popularity
+   bucket.
+   Solution: built the Bucket Order column from the numeric popularity
+   column instead of the bucket text.
+
+6. The SQL-based "artists above average" chart showed wrong values in Power BI.
+   Solution: replaced it with a DAX measure (Above Avg By).
+
+7. Slicers did not filter both tables.
+   Solution: created a relationship between tracks_unique and tracks, with
+   cross-filter direction set to Both.
+
+
+==================================================
+10. SKILLS DEMONSTRATED
+==================================================
+
+Excel: data cleaning, Remove Duplicates, filters, helper columns, pivot tables.
+Python: pandas, SQLAlchemy, text encoding fixes, loading data into a database.
+SQL (MySQL): GROUP BY, HAVING, CASE, window functions, CTEs, NTILE, views.
+Power BI: data modeling, relationships, DAX measures and columns, slicers,
+dashboard design.
+Problem solving: debugging import, encoding, data type and modeling errors.
+
+
+==================================================
+11. PROJECT FILES
+==================================================
+
+data    : sample of the cleaned dataset
+sql     : queries.sql with all 10 analysis queries
+excel   : Excel work file with cleaning steps and pivot table
+python  : notebook used to load the data into MySQL
+powerbi : Power BI dashboard file (.pbix) and PDF export
+
+Dataset credit: Spotify Tracks Dataset on Kaggle.
